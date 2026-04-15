@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lootera Run</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { background: #000; color: #ff007f; text-align: center; font-family: sans-serif; padding: 50px; }
+        .score { font-size: 40px; margin: 20px; color: #00ff00; text-shadow: 0 0 10px #00ff00; }
+        .btn { padding: 25px; font-size: 25px; background: #ff007f; color: #fff; border: none; border-radius: 50%; cursor: pointer; box-shadow: 0 0 20px #ff007f; }
+    </style>
+</head>
+<body>
+    <h1>💰 LOOTERA RUN 💰</h1>
+    <p>Abe oye! Jaldi tap kar aur maal loot! 🤑💅</p>
+    <div class="score">₹<span id="val">0</span></div>
+    <button class="btn" onclick="loot()">💸</button>
+    <script>
+        let s = 0;
+        function loot() { s += Math.floor(Math.random() * 500); document.getElementById('val').innerText = s; }
+    </script>
+</body>
+</html>
+
