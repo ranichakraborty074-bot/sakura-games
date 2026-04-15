@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🙄 Dodge Emoji</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@800&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  body{overflow:hidden;height:100vh;background:#0d0d2b;font-family:'Nunito',sans-serif;touch-action:none}
+  #game{position:relative;width:100vw;height:100vh}
+  #bg-anim{position:absolute;inset:0;background:linear-gradient(180deg,#0d0d2b,#1a1a4e,#0d0d2b)}
+  .drop{position:absolute;font-size:36px;animation:fall linear;pointer-events:none}
+  @keyframes fall{from{top:-60px}to{top:110vh}}
+  #player{position:absolute;bottom:80px;font-size:52px;transition:left .08s linear;filter:drop-shadow(0 0 12px #00e5ff);z-index:5}
+  #hud{position:absolute;top:16px;left:0;right:0;display:flex;justify-content:space-between;padding:0 18px;z-index:10}
+  .hud-box{background:rgba(0,0,0,0.55);border:2px solid rgba(255,255,255,0.15);border-radius:12px;padding:8px 16px;color:#fff;font-size:20px;font-family:'Bangers',cursive;letter-spacing:1px}
+  #time-box{color:#00e5ff}
+  #score-box{color:#ffd700}
+  #joystick-area{position:absolute;bottom:0;left:0;right:0;height:80px;display:flex}
+  #left-btn,#right-btn{flex:1;display:flex;align-items:center;justify-content:center;font-size:36px;color:rgba(255,255,255,0.2);border-top:2px solid rgba(255,255,255,0.08);cursor:pointer;background:rgba(255,255,255,0.04)}
+  #left-btn:active,#right-btn:active{background:rgba(255,255,255,0.12)}
+  #overlay{position:absolute;inset:0;background:rgba(0,0,0,0.88);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+  #overlay h1{font-family:'Bangers',cursive;font-size:50px;color:#00e5ff;text-shadow:0 0 20px #00e5ff;letter-spacing:3px}
+  #overlay p{color:#fff;font-size:17px;text-align:center;opacity:.85;padding:0 24px;line-height:1.6}
+  .big-score{font-family:'Bangers',cursive;font-size:42px;color:#ffd700}
+  .btn{background:linear-gradient(135deg,#00e5ff,#0080ff);border:none;border-radius:20px;padding:16px 44px;font-size:24px;font-family:'Bangers',cursive;letter-spacing:2px;color:#0d0d2b;cursor:pointer;box-shadow:0 4px 20px rgba(0,229,255,.4)}
+  .btn:active{transform:scale(.95)}
+  #shield-bar-wrap{width:70vw;max-width:300px;height:12px;background:rgba(255,255,255,0.1);border-radius:6px;overflow:hidden}
+  #shield-bar{height:100%;background:linear-gradient(90deg,#00e5ff,#0080ff);border-radius:6px;transition:width .2s}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="bg-anim"></div>
+  <div id="hud">
+    <div class="hud-box" id="score-box">💎 <span id="score">0</span></div>
+    <div class="hud-box" id="time-box">⏱ <span id="time">30</span>s</div>
+  </div>
+  <div id="shield-bar-wrap" style="position:absolute;top:70px;left:50%;transform:translateX(-50%)"><div id="shield-bar" style="width:100%"></div></div>
+  <div id="player">🙄</div>
+  <div id="joystick-area">
+    <div id="left-btn">◀</div>
+    <div id="right-btn">▶</div>
+  </div>
+  <div id="overlay">
+    <h1>🙄 DODGE EMOJI</h1>
+    <p>Falling emojis se bacho!<br>◀ ▶ buttons ya swipe karo<br>30 seconds survive karo!</p>
+    <button class="btn" onclick="startGame()">BACHNE KI KOSHISH! 🙄</button>
+  </div>
+</div>
+<script>
+let playerX,gameW,gameRunning=false,score=0,timeLeft=30,lives=3;
+let dropInterval,gameTimer,frame,speed=1.8;
+const player=document.getElementById('player');
+const scoreEl=document.getElementById('score');
+const timeEl=document.getElementById('time');
+const overlay=document.getElementById('overlay');
+const shieldBar=document.getElementById('shield-bar');
+const badEmojis=['💩','👮','🚔','💣','🔫','😡','👿','🧟'];
+const goodEmojis=['💎','⭐','🌟','💰','🍭'];
+let moving={left:false,right:false};
+
+function init(){
+  gameW=window.innerWidth;
+  playerX=gameW/2;
+  player.style.left=(playerX-26)+'px';
+}init();
+
+document.getElementById('left-btn').addEventListener('touchstart',e=>{e.preventDefault();moving.left=true},{passive:false});
+document.getElementById('left-btn').addEventListener('touchend',()=>moving.left=false);
+document.getElementById('right-btn').addEventListener('touchstart',e=>{e.preventDefault();moving.right=true},{passive:false});
+document.getElementById('right-btn').addEventListener('touchend',()=>moving.right=false);
+document.getElementById('left-btn').addEventListener('mousedown',()=>moving.left=true);
+document.getElementById('left-btn').addEventListener('mouseup',()=>moving.left=false);
+document.getElementById('right-btn').addEventListener('mousedown',()=>moving.right=true);
+document.getElementById('right-btn').addEventListener('mouseup',()=>moving.right=false);
+
+// Touch swipe
+let touchStartX=0;
+document.addEventListener('touchstart',e=>{touchStartX=e.touches[0].clientX});
+document.addEventListener('touchmove',e=>{
+  if(!gameRunning)return;
+  const dx=e.touches[0].clientX-touchStartX;
+  playerX=Math.max(26,Math.min(gameW-26,e.touches[0].clientX));
+  player.style.left=(playerX-26)+'px';
+});
+
+function movePlayer(){
+  if(!gameRunning)return;
+  if(moving.left)playerX=Math.max(26,playerX-6);
+  if(moving.right)playerX=Math.min(gameW-26,playerX+6);
+  player.style.left=(playerX-26)+'px';
+  requestAnimationFrame(movePlayer);
+}
+
+function spawnDrop(){
+  const isBad=Math.random()<0.65;
+  const drop=document.createElement('div');
+  drop.className='drop';
+  drop.textContent=isBad?badEmojis[Math.floor(Math.random()*badEmojis.length)]:goodEmojis[Math.floor(Math.random()*goodEmojis.length)];
+  drop.dataset.bad=isBad;
+  drop.style.left=Math.random()*(gameW-40)+'px';
+  const dur=(3.5/speed)+(Math.random()*1);
+  drop.style.animationDuration=dur+'s';
+  document.getElementById('game').appendChild(drop);
+  setTimeout(()=>drop.remove(),dur*1000+200);
+}
+
+function checkHit(){
+  if(!gameRunning)return;
+  const pr={left:playerX-20,right:playerX+20,top:window.innerHeight-140,bottom:window.innerHeight-80};
+  document.querySelectorAll('.drop').forEach(d=>{
+    const dr=d.getBoundingClientRect();
+    if(dr.right>pr.left&&dr.left<pr.right&&dr.bottom>pr.top&&dr.top<pr.bottom){
+      if(d.dataset.bad==='true'){
+        lives--;
+        shieldBar.style.width=(lives/3*100)+'%';
+        if(lives<=0){endGame();return;}
+        player.style.filter='drop-shadow(0 0 20px red)';
+        setTimeout(()=>player.style.filter='drop-shadow(0 0 12px #00e5ff)',400);
+      } else {
+        score+=5;scoreEl.textContent=score;
+      }
+      d.remove();
+    }
+  });
+  frame=requestAnimationFrame(checkHit);
+}
+
+function startGame(){
+  init();score=0;timeLeft=30;lives=3;speed=1.8;
+  scoreEl.textContent='0';timeEl.textContent='30';
+  shieldBar.style.width='100%';
+  shieldBar.style.background='linear-gradient(90deg,#00e5ff,#0080ff)';
+  document.querySelectorAll('.drop').forEach(d=>d.remove());
+  overlay.style.display='none';
+  gameRunning=true;
+  movePlayer();
+  dropInterval=setInterval(spawnDrop,700);
+  gameTimer=setInterval(()=>{
+    timeLeft--;timeEl.textContent=timeLeft;
+    speed=Math.min(speed+0.08,3.5);
+    if(timeLeft<=0){clearInterval(dropInterval);clearInterval(gameTimer);gameRunning=false;setTimeout(endGame,500);}
+  },1000);
+  checkHit();
+}
+
+function endGame(){
+  gameRunning=false;cancelAnimationFrame(frame);
+  const msg=lives<=0?'💥 Lag gayi tujhe!':score>=50?'🔥 Kya bachna tha bhai!':'😒 Theek tha...';
+  overlay.style.display='flex';
+  overlay.innerHTML=`<h1>${lives<=0?'💀 GAME OVER':'🎉 SURVIVED!'}</h1><p class="big-score">💎 ${score} gems</p><p>${msg}</p><button class="btn" onclick="startGame()">PHIR SE! 🙄</button>`;
+}
+</script>
+</body>
+</html>
+
