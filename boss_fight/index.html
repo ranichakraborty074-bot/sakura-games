@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>👑 Boss Fight</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@800;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  body{background:#0a0a0a;min-height:100vh;font-family:'Nunito',sans-serif;overflow:hidden;touch-action:manipulation}
+  #game{display:flex;flex-direction:column;align-items:center;height:100vh;padding:16px;gap:12px;position:relative}
+  #bg{position:fixed;inset:0;background:radial-gradient(ellipse at center,#1a0a0a 0%,#0a0a0a 70%);z-index:0}
+  #content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:420px;height:100%;gap:10px}
+  h1{font-family:'Bangers',cursive;font-size:38px;color:#ff1744;letter-spacing:3px;text-shadow:0 0 20px #ff1744}
+  .hp-wrap{width:100%;background:rgba(255,255,255,.08);border-radius:10px;height:22px;overflow:hidden;border:2px solid rgba(255,255,255,.12)}
+  .hp-bar{height:100%;border-radius:8px;transition:width .3s ease}
+  #boss-hp-bar{background:linear-gradient(90deg,#ff1744,#ff6b35)}
+  #player-hp-bar{background:linear-gradient(90deg,#00e676,#00bcd4)}
+  .hp-label{font-size:13px;color:rgba(255,255,255,.7);font-weight:800;display:flex;justify-content:space-between;margin-bottom:2px}
+  #boss-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:160px}
+  #boss{font-size:90px;transition:transform .1s;filter:drop-shadow(0 0 20px rgba(255,23,68,.6));cursor:pointer}
+  #boss:active,#boss.hit{transform:scale(.85) rotate(-10deg)}
+  #boss.shake{animation:shake .3s ease}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-12px)}75%{transform:translateX(12px)}}
+  #boss-name{font-family:'Bangers',cursive;font-size:26px;color:#ff6b35;letter-spacing:2px}
+  #dmg-float{position:absolute;font-family:'Bangers',cursive;font-size:36px;color:#ffd700;text-shadow:2px 2px 0 #000;pointer-events:none;opacity:0;z-index:10;top:35%;left:50%;transform:translateX(-50%)}
+  #dmg-float.pop{animation:popFloat .7s ease-out}
+  @keyframes popFloat{0%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.2)}100%{opacity:0;transform:translateX(-50%) translateY(-60px) scale(.8)}}
+  #skills{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:100%}
+  .skill-btn{background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.15);border-radius:14px;padding:10px 14px;font-size:13px;font-family:'Nunito',sans-serif;font-weight:800;color:#fff;cursor:pointer;text-align:center;flex:1;min-width:72px;max-width:100px;line-height:1.3;transition:all .15s}
+  .skill-btn:active{transform:scale(.92);background:rgba(255,255,255,.18)}
+  .skill-btn.fire{border-color:#ff6b35;color:#ff6b35}
+  .skill-btn.ice{border-color:#00e5ff;color:#00e5ff}
+  .skill-btn.thunder{border-color:#ffd700;color:#ffd700}
+  .skill-btn.heal{border-color:#00e676;color:#00e676}
+  .skill-btn.ultimate{border-color:#e040fb;color:#e040fb;background:rgba(224,64,251,.1)}
+  .skill-btn:disabled{opacity:.35;cursor:not-allowed}
+  #log{width:100%;background:rgba(0,0,0,.5);border-radius:12px;padding:8px 12px;font-size:13px;color:rgba(255,255,255,.8);min-height:40px;border:1px solid rgba(255,255,255,.08);line-height:1.5}
+  #overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+  #overlay h1{font-family:'Bangers',cursive;font-size:54px;color:#ff1744;text-shadow:0 0 20px #ff1744;letter-spacing:3px;text-align:center}
+  #overlay h1.win{color:#ffd700;text-shadow:0 0 20px #ffd700}
+  #overlay p{color:#fff;font-size:17px;text-align:center;opacity:.85;padding:0 24px;line-height:1.7}
+  .big-result{font-family:'Bangers',cursive;font-size:38px;color:#ffd700}
+  .btn{background:linear-gradient(135deg,#ff1744,#ff6b35);border:none;border-radius:20px;padding:16px 44px;font-size:24px;font-family:'Bangers',cursive;letter-spacing:2px;color:#fff;cursor:pointer;box-shadow:0 4px 20px rgba(255,23,68,.4)}
+  .btn:active{transform:scale(.95)}
+  #ult-bar-wrap{width:100%;background:rgba(224,64,251,.1);border-radius:8px;height:10px;overflow:hidden;border:1px solid rgba(224,64,251,.3)}
+  #ult-bar{height:100%;background:linear-gradient(90deg,#e040fb,#7b1fa2);border-radius:8px;transition:width .3s;width:0%}
+  .round-badge{font-family:'Bangers',cursive;font-size:16px;color:rgba(255,255,255,.5);letter-spacing:2px}
+</style>
+</head>
+<body>
+<div id="game"><div id="bg"></div>
+<div id="content">
+  <h1>👑 BOSS FIGHT</h1>
+  <div class="round-badge" id="round-badge">ROUND 1</div>
+  <div>
+    <div class="hp-label"><span>👹 BOSS</span><span id="boss-hp-txt">1000/1000</span></div>
+    <div class="hp-wrap"><div class="hp-bar" id="boss-hp-bar" style="width:100%"></div></div>
+  </div>
+  <div>
+    <div class="hp-label"><span>💪 TU</span><span id="player-hp-txt">200/200</span></div>
+    <div class="hp-wrap"><div class="hp-bar" id="player-hp-bar" style="width:100%"></div></div>
+  </div>
+  <div class="hp-label" style="margin-top:-4px"><span style="color:rgba(224,64,251,.9);font-size:12px">⚡ Ultimate</span><span id="ult-pct" style="color:rgba(224,64,251,.7);font-size:12px">0%</span></div>
+  <div id="ult-bar-wrap"><div id="ult-bar"></div></div>
+  <div id="boss-area">
+    <div id="boss-name">MAHA BOSS 👹</div>
+    <div id="boss" onclick="attack('tap')">👹</div>
+  </div>
+  <div id="dmg-float">-100</div>
+  <div id="skills">
+    <button class="skill-btn fire" onclick="attack('fire')">🔥<br>Fire<br><small>30-60</small></button>
+    <button class="skill-btn ice" onclick="attack('ice')">❄️<br>Ice<br><small>20-50</small></button>
+    <button class="skill-btn thunder" onclick="attack('thunder')">⚡<br>Thunder<br><small>40-80</small></button>
+    <button class="skill-btn heal" onclick="useHeal()">💊<br>Heal<br><small>+40</small></button>
+    <button class="skill-btn ultimate" id="ult-btn" onclick="useUltimate()" disabled>🌟<br>ULTRA<br><small>MAX</small></button>
+  </div>
+  <div id="log">👊 Boss ko maar! Survive kar!</div>
+</div>
+</div>
+<div id="overlay">
+  <h1>👑 BOSS FIGHT</h1>
+  <p>Sabse bade boss ko harao!<br>Skills use karo, heal karo, survive karo!</p>
+  <button class="btn" onclick="startGame()">LARNA SHURU! ⚔️</button>
+</div>
+<script>
+const bosses=[
+  {name:'MAHA BOSS 👹',emoji:'👹',hp:1000,atk:[15,35],reward:500,color:'#ff1744'},
+  {name:'DEMON KING 😈',emoji:'😈',hp:1500,atk:[25,55],reward:1000,color:'#e040fb'},
+  {name:'SAVAGE MAHI 💅',emoji:'💅',hp:2000,atk:[35,75],reward:2000,color:'#ffd700'},
+];
+let bossIdx=0,bossHp=0,bossMaxHp=0,playerHp=200,playerMaxHp=200,ultCharge=0,gameRunning=false,healCooldown=false,score=0,round=1;
+const bossEl=document.getElementById('boss');
+const bossNameEl=document.getElementById('boss-name');
+const bossHpBar=document.getElementById('boss-hp-bar');
+const bossHpTxt=document.getElementById('boss-hp-txt');
+const playerHpBar=document.getElementById('player-hp-bar');
+const playerHpTxt=document.getElementById('player-hp-txt');
+const ultBar=document.getElementById('ult-bar');
+const ultPct=document.getElementById('ult-pct');
+const ultBtn=document.getElementById('ult-btn');
+const logEl=document.getElementById('log');
+const dmgFloat=document.getElementById('dmg-float');
+const overlay=document.getElementById('overlay');
+const roundBadge=document.getElementById('round-badge');
+
+const skills={
+  tap:{min:10,max:25,ult:8,msg:(d)=>`👊 Tap attack! -${d} HP`},
+  fire:{min:30,max:60,ult:15,msg:(d)=>`🔥 Fire! -${d} HP! Hot hot!`},
+  ice:{min:20,max:50,ult:12,msg:(d)=>`❄️ Ice attack! -${d} HP!`},
+  thunder:{min:40,max:80,ult:20,msg:(d)=>`⚡ Thunder! -${d} HP! Baj gaya!`},
+};
+
+function rand(mn,mx){return Math.floor(Math.random()*(mx-mn+1))+mn;}
+
+function showDmg(val,color='#ffd700'){
+  dmgFloat.textContent='-'+val;
+  dmgFloat.style.color=color;
+  dmgFloat.classList.remove('pop');
+  void dmgFloat.offsetWidth;
+  dmgFloat.classList.add('pop');
+}
+
+function updateBossHp(){
+  const pct=Math.max(0,bossHp/bossMaxHp*100);
+  bossHpBar.style.width=pct+'%';
+  bossHpTxt.textContent=`${Math.max(0,bossHp)}/${bossMaxHp}`;
+  if(pct<30)bossHpBar.style.background='linear-gradient(90deg,#ffd700,#ff6b35)';
+}
+
+function updatePlayerHp(){
+  const pct=Math.max(0,playerHp/playerMaxHp*100);
+  playerHpBar.style.width=pct+'%';
+  playerHpTxt.textContent=`${Math.max(0,playerHp)}/${playerMaxHp}`;
+  if(pct<30)playerHpBar.style.background='linear-gradient(90deg,#ff1744,#ff6b35)';
+}
+
+function updateUlt(){
+  const pct=Math.min(100,ultCharge);
+  ultBar.style.width=pct+'%';
+  ultPct.textContent=Math.floor(pct)+'%';
+  ultBtn.disabled=pct<100;
+}
+
+function bossAttack(){
+  if(!gameRunning)return;
+  const boss=bosses[bossIdx];
+  const dmg=rand(boss.atk[0],boss.atk[1]);
+  playerHp=Math.max(0,playerHp-dmg);
+  updatePlayerHp();
+  logEl.textContent=`😈 Boss ne ${dmg} damage diya! Ouch!`;
+  if(playerHp<=0){endGame(false);}
+}
+
+function attack(type){
+  if(!gameRunning)return;
+  const sk=skills[type];
+  const dmg=rand(sk.min,sk.max);
+  bossHp-=dmg;
+  ultCharge=Math.min(100,ultCharge+sk.ult);
+  showDmg(dmg);
+  bossEl.classList.add('shake');
+  setTimeout(()=>bossEl.classList.remove('shake'),300);
+  logEl.textContent=sk.msg(dmg);
+  updateBossHp();updateUlt();
+  if(bossHp<=0){nextBossOrWin();return;}
+  setTimeout(bossAttack,700+Math.random()*600);
+}
+
+function useHeal(){
+  if(!gameRunning||healCooldown)return;
+  const h=40;
+  playerHp=Math.min(playerMaxHp,playerHp+h);
+  updatePlayerHp();
+  logEl.textContent=`💊 +${h} HP healed! Keep going!`;
+  healCooldown=true;
+  const healBtn=document.querySelector('.heal');
+  healBtn.disabled=true;healBtn.textContent='💊\nHeal\n(cooldown)';
+  setTimeout(()=>{healCooldown=false;healBtn.disabled=false;healBtn.innerHTML='💊<br>Heal<br><small>+40</small>';},5000);
+}
+
+function useUltimate(){
+  if(!gameRunning||ultCharge<100)return;
+  const dmg=rand(200,350);
+  bossHp-=dmg;
+  ultCharge=0;
+  showDmg(dmg,'#e040fb');
+  bossEl.style.filter='drop-shadow(0 0 40px #e040fb)';
+  setTimeout(()=>bossEl.style.filter=`drop-shadow(0 0 20px ${bosses[bossIdx].color})`,500);
+  logEl.textContent=`🌟 ULTIMATE! -${dmg} MASSIVE DAMAGE! SAVAGE!`;
+  updateBossHp();updateUlt();
+  if(bossHp<=0){nextBossOrWin();return;}
+  setTimeout(bossAttack,1000);
+}
+
+function nextBossOrWin(){
+  score+=bosses[bossIdx].reward;
+  bossIdx++;
+  if(bossIdx>=bosses.length){endGame(true);return;}
+  round++;
+  roundBadge.textContent=`ROUND ${round}`;
+  const boss=bosses[bossIdx];
+  bossMaxHp=boss.hp;bossHp=boss.hp;
+  playerHp=Math.min(playerMaxHp,playerHp+60);
+  bossNameEl.textContent=boss.name;
+  bossEl.textContent=boss.emoji;
+  bossEl.style.filter=`drop-shadow(0 0 20px ${boss.color})`;
+  logEl.textContent=`💀 Boss haara! Round ${round} — New boss: ${boss.name}!`;
+  updateBossHp();updatePlayerHp();
+}
+
+function startGame(){
+  bossIdx=0;score=0;round=1;ultCharge=0;healCooldown=false;
+  playerHp=200;playerMaxHp=200;
+  playerHpBar.style.background='linear-gradient(90deg,#00e676,#00bcd4)';
+  const boss=bosses[0];
+  bossMaxHp=boss.hp;bossHp=boss.hp;
+  bossNameEl.textContent=boss.name;
+  bossEl.textContent=boss.emoji;
+  bossEl.style.filter=`drop-shadow(0 0 20px ${boss.color})`;
+  roundBadge.textContent='ROUND 1';
+  const healBtn=document.querySelector('.heal');
+  healBtn.disabled=false;healBtn.innerHTML='💊<br>Heal<br><small>+40</small>';
+  updateBossHp();updatePlayerHp();updateUlt();
+  logEl.textContent='👊 Boss ko maar! Survive kar!';
+  overlay.style.display='none';
+  gameRunning=true;
+}
+
+function endGame(won){
+  gameRunning=false;
+  overlay.style.display='flex';
+  if(won){
+    overlay.innerHTML=`<h1 class="win">🏆 JEETA!</h1><p class="big-result">💰 Score: ${score}</p><p>Sab bosses haara diye! Ekdum Mahi level! 👑</p><button class="btn" style="background:linear-gradient(135deg,#ffd700,#ff6b35);color:#000" onclick="startGame()">AUR LADNA HAI! ⚔️</button>`;
+  } else {
+    overlay.innerHTML=`<h1>💀 HAARA!</h1><p class="big-result">💀 Round ${round} mein</p><p>Boss ne maar diya! Aur practice kar! 😒</p><button class="btn" onclick="startGame()">PHIR SE TRY! ⚔️</button>`;
+  }
+}
+</script>
+</body>
+</html>
