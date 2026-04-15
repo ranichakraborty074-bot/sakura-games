@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>💅 Savage Tap</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@800;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  body{background:#ff1744;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;overflow:hidden;touch-action:none}
+  #bg{position:fixed;inset:0;background:radial-gradient(ellipse at center,#ff1744 0%,#880e4f 100%);z-index:0}
+  .bubble{position:fixed;border-radius:50%;background:rgba(255,255,255,0.06);animation:rise linear infinite;z-index:0}
+  @keyframes rise{0%{transform:translateY(100vh) scale(0)}100%{transform:translateY(-200px) scale(1);opacity:0}}
+  #container{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:20px;width:100vw;padding:20px}
+  h1{font-family:'Bangers',cursive;font-size:48px;color:#fff;letter-spacing:3px;text-shadow:3px 3px 0 #880e4f}
+  #timer-bar-wrap{width:80vw;max-width:340px;height:18px;background:rgba(0,0,0,0.3);border-radius:10px;overflow:hidden}
+  #timer-bar{height:100%;background:linear-gradient(90deg,#ffd700,#ff6b00);border-radius:10px;transition:width .1s linear;width:100%}
+  #tap-zone{width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,#fff 0%,#ffd700 60%,#ff6b00 100%);display:flex;align-items:center;justify-content:center;font-size:90px;box-shadow:0 0 40px rgba(255,215,0,0.8),0 0 80px rgba(255,107,0,0.4);cursor:pointer;transition:transform .08s,box-shadow .08s;border:6px solid #fff}
+  #tap-zone:active{transform:scale(0.88);box-shadow:0 0 20px rgba(255,215,0,0.4)}
+  #score-display{font-family:'Bangers',cursive;font-size:56px;color:#fff;text-shadow:3px 3px 0 rgba(0,0,0,0.4);min-height:70px}
+  #tps{color:rgba(255,255,255,0.8);font-size:18px;font-weight:800;letter-spacing:1px}
+  .floaty{position:fixed;pointer-events:none;font-family:'Bangers',cursive;font-size:28px;color:#ffd700;text-shadow:2px 2px 0 #000;animation:floatUp .8s ease-out forwards;z-index:10}
+  @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-100px) scale(1.5)}}
+  #overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+  #overlay h1{font-family:'Bangers',cursive;font-size:54px;color:#ffd700;text-shadow:0 0 20px #ffd700;letter-spacing:3px;text-align:center}
+  #overlay p{color:#fff;font-size:18px;text-align:center;opacity:.85;padding:0 20px}
+  #overlay .big{font-family:'Bangers',cursive;font-size:40px;color:#ff6b35}
+  .btn{background:linear-gradient(135deg,#ffd700,#ff6b00);border:none;border-radius:20px;padding:16px 44px;font-size:24px;font-family:'Bangers',cursive;letter-spacing:2px;color:#1a0a2e;cursor:pointer;box-shadow:0 4px 20px rgba(255,215,0,.5)}
+  .btn:active{transform:scale(.95)}
+  #rank{font-size:22px;color:#ffd700;font-weight:900}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div id="container">
+  <h1>💅 SAVAGE TAP</h1>
+  <div id="timer-bar-wrap"><div id="timer-bar"></div></div>
+  <div id="score-display">0</div>
+  <div id="tap-zone">💅</div>
+  <div id="tps">Taps: 0/sec</div>
+  <div id="rank"></div>
+</div>
+<div id="overlay">
+  <h1>💅 SAVAGE TAP</h1>
+  <p>15 seconds mein jitna ho sake tap karo!</p>
+  <button class="btn" onclick="startGame()">SHURU KAR! 💅</button>
+</div>
+<script>
+for(let i=0;i<12;i++){
+  const b=document.createElement('div');
+  b.className='bubble';
+  const s=Math.random()*80+20;
+  b.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;animation-duration:${Math.random()*6+4}s;animation-delay:${Math.random()*4}s`;
+  document.getElementById('bg').appendChild(b);
+}
+let taps=0,running=false,timeLeft=15,timer,lastTaps=0,tpsTimer;
+const tapZone=document.getElementById('tap-zone');
+const scoreEl=document.getElementById('score-display');
+const timerBar=document.getElementById('timer-bar');
+const tpsEl=document.getElementById('tps');
+const rankEl=document.getElementById('rank');
+const overlay=document.getElementById('overlay');
+const emojis=['💅','😈','🔥','👊','💀','🤑','👑','💋'];
+
+function showFloat(x,y,text){
+  const f=document.createElement('div');
+  f.className='floaty';f.textContent=text;
+  f.style.left=x+'px';f.style.top=y+'px';
+  document.body.appendChild(f);
+  setTimeout(()=>f.remove(),900);
+}
+
+tapZone.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  Array.from(e.changedTouches).forEach(t=>doTap(t.clientX,t.clientY));
+},{passive:false});
+tapZone.addEventListener('mousedown',e=>doTap(e.clientX,e.clientY));
+
+function doTap(x,y){
+  if(!running)return;
+  taps++;
+  scoreEl.textContent=taps;
+  tapZone.textContent=emojis[taps%emojis.length];
+  const floatTexts=['+1','Savage!','Loot!','Baj gaya!','💰'];
+  showFloat(x-30,y-40,floatTexts[Math.floor(Math.random()*floatTexts.length)]);
+}
+
+function getRank(t){
+  if(t>=200)return'👑 MAHI LEVEL!';
+  if(t>=150)return'🔥 Savage Queen!';
+  if(t>=100)return'💅 Ek dum solid!';
+  if(t>=60)return'😒 Theek tha...';
+  return'🥱 Aur mehnat kar!';
+}
+
+function startGame(){
+  taps=0;timeLeft=15;running=true;
+  scoreEl.textContent='0';
+  timerBar.style.width='100%';
+  rankEl.textContent='';
+  tapZone.textContent='💅';
+  overlay.style.display='none';
+  tpsTimer=setInterval(()=>{
+    tpsEl.textContent=`Taps: ${taps-lastTaps}/sec`;
+    lastTaps=taps;
+  },1000);
+  timer=setInterval(()=>{
+    timeLeft-=0.1;
+    timerBar.style.width=(timeLeft/15*100)+'%';
+    if(timeLeft<=3)timerBar.style.background='#ff1744';
+    if(timeLeft<=0){
+      clearInterval(timer);clearInterval(tpsTimer);
+      running=false;endGame();
+    }
+  },100);
+}
+
+function endGame(){
+  overlay.style.display='flex';
+  overlay.innerHTML=`<h1>💅 TIME UP!</h1><p class="big">${taps} TAPS!</p><p id="rank">${getRank(taps)}</p><button class="btn" onclick="startGame()">PHIR SE! 🔥</button>`;
+}
+</script>
+</body>
+</html>
+
