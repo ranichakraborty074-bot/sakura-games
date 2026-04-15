@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>💵 Cash Catch</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@800&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  body{overflow:hidden;height:100vh;background:#1b4332;font-family:'Nunito',sans-serif;touch-action:none}
+  #game{position:relative;width:100vw;height:100vh}
+  #bg{position:absolute;inset:0;background:radial-gradient(ellipse at top,#2d6a4f 0%,#1b4332 60%,#081c15 100%)}
+  .money{position:absolute;font-size:34px;animation:drop linear;pointer-events:none;z-index:3}
+  .bomb{position:absolute;font-size:32px;animation:drop linear;pointer-events:none;z-index:3}
+  @keyframes drop{from{top:-60px;transform:rotate(0deg)}to{top:110vh;transform:rotate(360deg)}}
+  #basket{position:absolute;bottom:60px;font-size:56px;transition:left .06s linear;z-index:5;filter:drop-shadow(0 4px 8px rgba(0,0,0,.5))}
+  #hud{position:absolute;top:16px;left:0;right:0;display:flex;justify-content:space-between;padding:0 16px;z-index:10;gap:8px}
+  .hud-box{background:rgba(0,0,0,.6);border:2px solid rgba(255,215,0,.3);border-radius:12px;padding:8px 14px;font-family:'Bangers',cursive;font-size:20px;letter-spacing:1px}
+  #cash-box{color:#ffd700}
+  #time-box{color:#95f5a0}
+  #lives-box{color:#ff6b6b;font-size:22px}
+  #ctrl{position:absolute;bottom:0;left:0;right:0;height:60px;display:flex}
+  #lb,#rb{flex:1;display:flex;align-items:center;justify-content:center;font-size:32px;color:rgba(255,255,255,.25);background:rgba(255,255,255,.06);border-top:2px solid rgba(255,255,255,.08);cursor:pointer}
+  #lb:active,#rb:active{background:rgba(255,255,255,.15)}
+  #overlay{position:absolute;inset:0;background:rgba(0,0,0,.9);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+  #overlay h1{font-family:'Bangers',cursive;font-size:50px;color:#ffd700;text-shadow:0 0 20px #ffd700;letter-spacing:3px}
+  #overlay p{color:#fff;font-size:17px;text-align:center;opacity:.85;padding:0 24px;line-height:1.7}
+  .big-cash{font-family:'Bangers',cursive;font-size:46px;color:#ffd700}
+  .btn{background:linear-gradient(135deg,#ffd700,#52b788);border:none;border-radius:20px;padding:16px 44px;font-size:24px;font-family:'Bangers',cursive;letter-spacing:2px;color:#081c15;cursor:pointer;box-shadow:0 4px 24px rgba(255,215,0,.4)}
+  .btn:active{transform:scale(.95)}
+  .float-cash{position:fixed;pointer-events:none;font-family:'Bangers',cursive;font-size:26px;color:#ffd700;text-shadow:1px 1px 0 #000;animation:floatUp .7s ease-out forwards;z-index:15}
+  @keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-80px)}}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="bg"></div>
+  <div id="hud">
+    <div class="hud-box" id="cash-box">💵 ₹<span id="cash">0</span></div>
+    <div class="hud-box" id="time-box">⏱ <span id="time">45</span>s</div>
+    <div class="hud-box" id="lives-box"><span id="lives">❤️❤️❤️</span></div>
+  </div>
+  <div id="basket">🧺</div>
+  <div id="ctrl">
+    <div id="lb">◀</div>
+    <div id="rb">▶</div>
+  </div>
+  <div id="overlay">
+    <h1>💵 CASH CATCH</h1>
+    <p>Girte paison ko pakdo!<br>Bombs se bachna!<br>45 seconds mein zyada se zyada looto!</p>
+    <button class="btn" onclick="startGame()">LOOTING SHURU! 💰</button>
+  </div>
+</div>
+<script>
+const moneyTypes=[{e:'💵',v:10},{e:'💰',v:25},{e:'💎',v:50},{e:'🪙',v:5},{e:'💳',v:30}];
+const bombTypes=['💣','☠️','🔫','👮'];
+let basketX,gameW,cash=0,lives=3,timeLeft=45,gameRunning=false,speed=1.6;
+let dropI,gameT,frame;
+const basket=document.getElementById('basket');
+const cashEl=document.getElementById('cash');
+const timeEl=document.getElementById('time');
+const livesEl=document.getElementById('lives');
+const overlay=document.getElementById('overlay');
+let moving={l:false,r:false};
+
+function init(){gameW=window.innerWidth;basketX=gameW/2;basket.style.left=(basketX-28)+'px';}init();
+
+document.getElementById('lb').addEventListener('touchstart',e=>{e.preventDefault();moving.l=true},{passive:false});
+document.getElementById('lb').addEventListener('touchend',()=>moving.l=false);
+document.getElementById('rb').addEventListener('touchstart',e=>{e.preventDefault();moving.r=true},{passive:false});
+document.getElementById('rb').addEventListener('touchend',()=>moving.r=false);
+document.getElementById('lb').addEventListener('mousedown',()=>moving.l=true);
+document.getElementById('lb').addEventListener('mouseup',()=>moving.l=false);
+document.getElementById('rb').addEventListener('mousedown',()=>moving.r=true);
+document.getElementById('rb').addEventListener('mouseup',()=>moving.r=false);
+
+document.addEventListener('touchmove',e=>{
+  if(!gameRunning)return;
+  basketX=Math.max(28,Math.min(gameW-28,e.touches[0].clientX));
+  basket.style.left=(basketX-28)+'px';
+});
+
+function moveBasket(){
+  if(!gameRunning)return;
+  if(moving.l)basketX=Math.max(28,basketX-7);
+  if(moving.r)basketX=Math.min(gameW-28,basketX+7);
+  basket.style.left=(basketX-28)+'px';
+  requestAnimationFrame(moveBasket);
+}
+
+function showFloat(x,y,text){
+  const f=document.createElement('div');
+  f.className='float-cash';f.textContent=text;
+  f.style.left=x+'px';f.style.top=y+'px';
+  document.body.appendChild(f);
+  setTimeout(()=>f.remove(),800);
+}
+
+function spawnItem(){
+  const isBomb=Math.random()<0.28;
+  const el=document.createElement('div');
+  el.className=isBomb?'bomb':'money';
+  if(isBomb){
+    el.textContent=bombTypes[Math.floor(Math.random()*bombTypes.length)];
+    el.dataset.bomb=true;
+  } else {
+    const m=moneyTypes[Math.floor(Math.random()*moneyTypes.length)];
+    el.textContent=m.e;el.dataset.value=m.v;
+  }
+  el.style.left=Math.random()*(gameW-40)+'px';
+  const dur=(3.2/speed)+(Math.random()*.8);
+  el.style.animationDuration=dur+'s';
+  document.getElementById('game').appendChild(el);
+  setTimeout(()=>el.remove(),(dur+.2)*1000);
+}
+
+function checkCatch(){
+  if(!gameRunning)return;
+  const br={left:basketX-40,right:basketX+40,top:window.innerHeight-130,bottom:window.innerHeight-60};
+  document.querySelectorAll('.money,.bomb').forEach(item=>{
+    const r=item.getBoundingClientRect();
+    if(r.right>br.left&&r.left<br.right&&r.bottom>br.top&&r.top<br.bottom){
+      if(item.dataset.bomb){
+        lives--;
+        livesEl.textContent='❤️'.repeat(Math.max(0,lives))+'🖤'.repeat(Math.max(0,3-lives));
+        item.remove();
+        basket.style.filter='drop-shadow(0 0 20px red)';
+        setTimeout(()=>basket.style.filter='drop-shadow(0 4px 8px rgba(0,0,0,.5))',400);
+        if(lives<=0){endGame();return;}
+      } else {
+        const v=parseInt(item.dataset.value)||10;
+        cash+=v;cashEl.textContent=cash;
+        showFloat(br.left+20,br.top-20,`+₹${v}`);
+        item.remove();
+      }
+    }
+  });
+  frame=requestAnimationFrame(checkCatch);
+}
+
+function startGame(){
+  init();cash=0;lives=3;timeLeft=45;speed=1.6;
+  cashEl.textContent='0';timeEl.textContent='45';
+  livesEl.textContent='❤️❤️❤️';
+  basket.style.filter='drop-shadow(0 4px 8px rgba(0,0,0,.5))';
+  document.querySelectorAll('.money,.bomb').forEach(e=>e.remove());
+  overlay.style.display='none';
+  gameRunning=true;
+  moveBasket();
+  dropI=setInterval(spawnItem,600);
+  gameT=setInterval(()=>{
+    timeLeft--;timeEl.textContent=timeLeft;
+    speed=Math.min(speed+0.06,3);
+    if(timeLeft<=0){clearInterval(dropI);clearInterval(gameT);gameRunning=false;setTimeout(endGame,500);}
+  },1000);
+  checkCatch();
+}
+
+function endGame(){
+  gameRunning=false;cancelAnimationFrame(frame);
+  const msg=cash>=500?'👑 Ek dum loaded bhai!':cash>=200?'💅 Theek thak loota!':cash>=100?'😒 Aur loota kar!':'🥱 Itne mein kya hoga?';
+  overlay.style.display='flex';
+  overlay.innerHTML=`<h1>${lives<=0?'💣 BOMB LAG GAYI':'💰 TIME UP!'}</h1><p class="big-cash">₹${cash} loota!</p><p>${msg}</p><button class="btn" onclick="startGame()">AUR LOOTO! 💵</button>`;
+}
+</script>
+</body>
+</html>
