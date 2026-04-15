@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>💰 Lootera Run</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@700;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:#1a0a2e;overflow:hidden;height:100vh;font-family:'Nunito',sans-serif;touch-action:none}
+  #game{position:relative;width:100vw;height:100vh;overflow:hidden}
+  #bg{position:absolute;inset:0;background:linear-gradient(180deg,#1a0a2e 0%,#2d1b4e 60%,#4a1942 100%)}
+  .star{position:absolute;background:#fff;border-radius:50%;animation:twinkle 2s infinite}
+  @keyframes twinkle{0%,100%{opacity:.3}50%{opacity:1}}
+  #ground{position:absolute;bottom:0;width:200%;height:80px;background:linear-gradient(180deg,#ff6b35,#c0392b);border-top:4px solid #ff8c42;animation:scroll 1.5s linear infinite}
+  @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  .ground-tile{display:inline-block;width:60px;height:76px;border-right:2px solid rgba(255,255,255,0.1)}
+  #player{position:absolute;bottom:80px;left:15vw;width:50px;height:60px;font-size:42px;line-height:60px;text-align:center;transition:none;filter:drop-shadow(0 0 10px #ffd700)}
+  #player.jumping{animation:jump 0.55s ease-out}
+  @keyframes jump{0%{transform:translateY(0)}40%{transform:translateY(-160px)}100%{transform:translateY(0)}}
+  .obstacle{position:absolute;bottom:80px;font-size:36px;animation:moveLeft linear}
+  @keyframes moveLeft{from{transform:translateX(0)}to{transform:translateX(-120vw)}}
+  .coin{position:absolute;font-size:26px;animation:moveLeft linear}
+  #hud{position:absolute;top:16px;left:0;right:0;display:flex;justify-content:space-between;padding:0 20px;z-index:10}
+  #score-box{background:rgba(0,0,0,0.5);border:2px solid #ffd700;border-radius:12px;padding:8px 16px;color:#ffd700;font-size:22px;font-family:'Bangers',cursive;letter-spacing:1px}
+  #lives{font-size:26px;background:rgba(0,0,0,0.5);border-radius:12px;padding:8px 12px}
+  #overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.82);z-index:20;gap:16px}
+  #overlay h1{font-family:'Bangers',cursive;font-size:52px;color:#ffd700;text-shadow:0 0 20px #ffd700;letter-spacing:3px}
+  #overlay p{color:#fff;font-size:18px;opacity:.8;text-align:center;padding:0 30px}
+  #overlay .score-final{font-family:'Bangers',cursive;font-size:36px;color:#ff6b35}
+  #start-btn{background:linear-gradient(135deg,#ffd700,#ff6b35);border:none;border-radius:20px;padding:16px 40px;font-size:22px;font-family:'Bangers',cursive;letter-spacing:2px;cursor:pointer;color:#1a0a2e;box-shadow:0 4px 20px rgba(255,215,0,0.5);transform:scale(1);transition:transform .1s}
+  #start-btn:active{transform:scale(0.95)}
+  #combo{position:absolute;top:80px;right:20px;font-family:'Bangers',cursive;font-size:28px;color:#ff6b35;opacity:0;transition:opacity .3s;text-shadow:0 0 10px #ff6b35}
+  #combo.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="bg"></div>
+  <div id="ground"></div>
+  <div id="player">🏃</div>
+  <div id="hud">
+    <div id="score-box">💰 <span id="score">0</span></div>
+    <div id="lives">❤️❤️❤️</div>
+  </div>
+  <div id="combo">COMBO! 🔥</div>
+  <div id="overlay">
+    <h1>💰 LOOTERA RUN</h1>
+    <p>Tap / Space to jump<br>Collect coins, dodge obstacles!</p>
+    <button id="start-btn" onclick="startGame()">DAUDO! 🏃</button>
+  </div>
+</div>
+<script>
+let score=0,lives=3,gameRunning=false,speed=2.2,jumping=false,combo=0;
+let obstacleInterval,coinInterval,speedInterval,frame;
+const player=document.getElementById('player');
+const scoreEl=document.getElementById('score');
+const livesEl=document.getElementById('lives');
+const overlay=document.getElementById('overlay');
+const comboEl=document.getElementById('combo');
+const ground=document.getElementById('ground');
+
+// Stars
+for(let i=0;i<40;i++){
+  const s=document.createElement('div');
+  s.className='star';
+  s.style.cssText=`width:${Math.random()*3+1}px;height:${Math.random()*3+1}px;left:${Math.random()*100}%;top:${Math.random()*55}%;animation-delay:${Math.random()*2}s`;
+  document.getElementById('bg').appendChild(s);
+}
+
+// Ground tiles
+const gt=document.getElementById('ground');
+for(let i=0;i<40;i++) gt.innerHTML+=`<span class="ground-tile"></span>`;
+
+function doJump(){
+  if(!gameRunning||jumping)return;
+  jumping=true;
+  player.classList.add('jumping');
+  setTimeout(()=>{player.classList.remove('jumping');jumping=false;},550);
+}
+document.addEventListener('keydown',e=>{if(e.code==='Space')doJump()});
+document.addEventListener('touchstart',()=>doJump());
+
+function spawnObstacle(){
+  const obs=document.createElement('div');
+  const types=['🚔','💣','🧱','🔒','👮'];
+  obs.className='obstacle';
+  obs.textContent=types[Math.floor(Math.random()*types.length)];
+  obs.style.left='105vw';
+  obs.style.animationDuration=(2.8/speed*1.5)+'s';
+  document.getElementById('game').appendChild(obs);
+  setTimeout(()=>obs.remove(),3000);
+}
+
+function spawnCoin(){
+  const coin=document.createElement('div');
+  const types=['💰','💵','💎','🪙'];
+  coin.className='coin';
+  coin.textContent=types[Math.floor(Math.random()*types.length)];
+  coin.style.left='105vw';
+  const h=Math.random()<0.5?80:200;
+  coin.style.bottom=(80+h)+'px';
+  coin.style.animationDuration=(2.5/speed*1.5)+'s';
+  document.getElementById('game').appendChild(coin);
+  setTimeout(()=>coin.remove(),3000);
+}
+
+function checkCollisions(){
+  const pr=player.getBoundingClientRect();
+  const pad=12;
+  document.querySelectorAll('.obstacle').forEach(o=>{
+    const or=o.getBoundingClientRect();
+    if(pr.right-pad>or.left+pad&&pr.left+pad<or.right-pad&&pr.bottom-pad>or.top+pad){
+      lives--;
+      livesEl.textContent='❤️'.repeat(Math.max(0,lives))+'🖤'.repeat(Math.max(0,3-lives));
+      o.remove();
+      combo=0;
+      if(lives<=0){endGame();return;}
+      player.style.filter='drop-shadow(0 0 20px red)';
+      setTimeout(()=>player.style.filter='drop-shadow(0 0 10px #ffd700)',400);
+    }
+  });
+  document.querySelectorAll('.coin').forEach(c=>{
+    const cr=c.getBoundingClientRect();
+    if(pr.right-pad>cr.left&&pr.left+pad<cr.right&&pr.bottom-pad>cr.top){
+      score+=10;combo++;
+      scoreEl.textContent=score;
+      c.remove();
+      if(combo>=3){comboEl.classList.add('show');setTimeout(()=>comboEl.classList.remove('show'),600);}
+    }
+  });
+}
+
+function gameLoop(){
+  if(!gameRunning)return;
+  checkCollisions();
+  frame=requestAnimationFrame(gameLoop);
+}
+
+function startGame(){
+  score=0;lives=3;speed=2.2;jumping=false;combo=0;
+  scoreEl.textContent='0';
+  livesEl.textContent='❤️❤️❤️';
+  player.style.filter='drop-shadow(0 0 10px #ffd700)';
+  document.querySelectorAll('.obstacle,.coin').forEach(e=>e.remove());
+  overlay.style.display='none';
+  gameRunning=true;
+  ground.style.animationDuration='1.5s';
+  obstacleInterval=setInterval(spawnObstacle,1600);
+  coinInterval=setInterval(spawnCoin,900);
+  speedInterval=setInterval(()=>{speed=Math.min(speed+0.15,5);},3000);
+  gameLoop();
+}
+
+function endGame(){
+  gameRunning=false;
+  cancelAnimationFrame(frame);
+  clearInterval(obstacleInterval);clearInterval(coinInterval);clearInterval(speedInterval);
+  overlay.style.display='flex';
+  overlay.innerHTML=`<h1>💀 PAKDE GAYE!</h1><p class="score-final">💰 Loot: ₹${score}</p><p>${score>100?'Ek dum mast loota! 🔥':'Thoda aur loota kar! 😒'}</p><button id="start-btn" onclick="startGame()" style="background:linear-gradient(135deg,#ffd700,#ff6b35);border:none;border-radius:20px;padding:16px 40px;font-size:22px;font-family:Bangers,cursive;letter-spacing:2px;cursor:pointer;color:#1a0a2e">PHIR DAUDO! 🏃</button>`;
+}
+</script>
+</body>
+</html>
+
